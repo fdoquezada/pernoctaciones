@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <div>
+            <h2 class="text-dark mb-0"><i class="bi bi-truck-front text-primary"></i> Control de Pernoctaciones</h2>
+            <p class="mb-0 text-muted">
+                Jornada: <strong id="jornada-viva">{{ viewer_date|date:"d/m/Y" }}</strong> |
+                Hora Actual: <strong id="reloj-vivo" class="text-dark">00:00:00</strong>
+            </p>
+        </div>
+        <form action="{% url 'resetear_dia' %}" method="post"
+            onsubmit="return confirm('¿Borrar todos los registros de hoy?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-trash3"></i> Resetear Día
+            </button>
+        </form>
+    </div>
+
+    <div class="row mb-4 g-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-title fw-bold text-secondary text-uppercase small">1. Cargar Planilla TMS</h6>
+                    <form method="post" enctype="multipart/form-data" class="d-flex gap-2">
+                        {% csrf_token %}
+                        <div class="flex-grow-1">{{ form.archivo_excel }}</div>
+                        <button type="submit" class="btn btn-primary btn-sm">Cargar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100 bg-light">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <form action="{% url 'notificar_masivo' %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-warning w-100 fw-bold">
+                            <i class="bi bi-envelope-paper-fill"></i> Notificar a Transportistas (Links)
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="card shadow border-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-3">Transporte</th>
+                        <th>Conductor / Patente</th>
+                        <th class="text-center">Llegada / Salida</th>
+                        <th class="text-center">Semaforo 23:59</th>
+                        <th class="text-center">Semaforo 8Hrs</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for viaje in viajes %}
+                    <tr>
+                        <td class="ps-3">
+                            <span class="d-block fw-bold small text-primary">{{ viaje.transportista.nombre }}</span>
+                            {% if viaje.link_respondido %}
+                            <span class="badge bg-success-subtle text-success border border-success">Respondido</span>
+                            {% else %}
+                            <span class="badge bg-light text-muted border small">Pendiente Link</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="small">{{ viaje.conductor }}</div>
+                            <span class="badge bg-secondary">{{ viaje.patente }}</span>
+                        </td>
+                        <td class="text-center small">
+                            Llegada: <strong>{{ viaje.hora_llegada|date:"H:i"|default:"--" }}</strong><br>
+                            Salida: <strong>{{ viaje.hora_salida|date:"H:i"|default:"--" }}</strong>
+                        </td>
+                        <td class="text-center">
+                            {% if viaje.hora_llegada %}
+                            <span
+                                class="badge {% if viaje.cumple_llegada %}bg-success{% else %}bg-danger{% endif %} w-75">
+                                {% if viaje.cumple_llegada %}CUMPLE{% else %}NO CUMPLE{% endif %}
+                            </span>
+                            {% else %}
+                            <span class="text-muted small">Sin Registro</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if viaje.hora_salida %}
+                            <i
+                                class="bi {% if viaje.cumple_8_horas %}bi-shield-fill-check text-success{% else %}bi-exclamation-octagon-fill text-danger{% endif %} fs-4"></i>
+                            {% else %}
+                            <i class="bi bi-hourglass-split text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm border">
+                                {% if not viaje.hora_llegada %}
+                                <a href="{% url 'registrar_llegada' viaje.id %}"
+                                    class="btn btn-white text-primary fw-bold">Llegada</a>
+                                {% elif not viaje.hora_salida %}
+                                <a href="{% url 'registrar_salida' viaje.id %}"
+                                    class="btn btn-white text-success fw-bold">Salida</a>
+                                {% else %}
+                                <span class="px-2 text-muted small"><i class="bi bi-lock-fill"></i> OK</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted fst-italic">No hay viajes registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<div class="mt-3 text-end">
+    <span class="text-muted small me-2">Sincronizado con servidor Chile:</span>
+    <span id="reloj-vivo" class="badge bg-dark fs-6 shadow-sm">00:00:00</span>
+</div>
+<script>
+    function actualizarReloj() {
+        const ahora = new Date();
+
+        // Actualizar Reloj
+        const hora = ahora.getHours().toString().padStart(2, '0');
+        const minutos = ahora.getMinutes().toString().padStart(2, '0');
+        const segundos = ahora.getSeconds().toString().padStart(2, '0');
+        const elReloj = document.getElementById('reloj-vivo');
+        if (elReloj) elReloj.textContent = `${hora}:${minutos}:${segundos}`;
+
+        // Actualizar Jornada (Para que coincida con tu PC)
+        const dia = ahora.getDate().toString().padStart(2, '0');
+        const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
+        const anio = ahora.getFullYear();
+        const elJornada = document.getElementById('jornada-viva');
+        if (elJornada) elJornada.textContent = `${dia}/${mes}/${anio}`;
+    }
+
+    setInterval(actualizarReloj, 1000);
+    actualizarReloj();
+</script>
+{% endblock %}

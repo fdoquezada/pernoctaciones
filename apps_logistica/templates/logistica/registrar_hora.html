@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Registrar {{ tipo }} Manual</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Transporte:</strong> {{ viaje.transportista.nombre }}</p>
+                    <p><strong>Patente:</strong> {{ viaje.patente }}</p>
+                    <hr>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Ingrese la hora de {{ tipo }}:</label>
+                            <input type="time" name="hora_manual" class="form-control form-control-lg" required>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">Guardar Registro</button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-light">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
